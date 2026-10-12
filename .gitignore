@@ -1,0 +1,12 @@
+# 비밀 키 — 절대 커밋하지 않음
+.env
+.env.*
+
+# 크롤링 원본(타 사이트 콘텐츠·스크린샷)은 로컬에만 보관
+research/daum-fortune/
+
+# 임시 파일
+saju-app/_*.html
+*.log
+.DS_Store
+Thumbs.db

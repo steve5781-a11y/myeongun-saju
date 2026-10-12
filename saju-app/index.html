@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>명운당 사주</title>
+  <meta name="description" content="만세력 기반 사주팔자 풀이와 오늘의 운세. MBTI·혈액형을 겹쳐 보는 삼중 분석과 친구 말투 팩폭 모드까지.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="명운당 사주 · 사주 × MBTI × 혈액형">
+  <meta property="og:description" content="태어난 순간의 여덟 글자에 MBTI와 혈액형을 겹쳐 본 내 운명. 팩폭 모드로 뼈 맞을 준비 됐어?">
+  <meta name="theme-color" content="#0d1222">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2212%22 fill=%22%23a8322b%22/%3E%3Ctext x=%2232%22 y=%2246%22 font-size=%2238%22 text-anchor=%22middle%22 fill=%22%23fbe9d8%22 font-family=%22serif%22%3E%E5%91%BD%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nanum+Brush+Script&family=Noto+Serif+KR:wght@400;500;600;700;900&family=Song+Myung&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="sky" aria-hidden="true"><div class="stars"></div><div class="stars s2"></div></div>
+
+  <header class="topbar">
+    <a href="#home" class="brand" data-go="home">
+      <span class="seal-logo">命</span>
+      <span class="brand-name">명운당<small>命運堂</small></span>
+    </a>
+    <button class="icon-btn" id="btn-profile" aria-label="내 정보" data-go="input">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg>
+    </button>
+  </header>
+
+  <main id="app">
+    <!-- 홈 -->
+    <section class="view" id="view-home">
+      <div class="hero">
+        <div class="moon" aria-hidden="true"></div>
+        <p class="today-line" id="today-line"></p>
+        <h1 class="hero-title">여덟 글자에 담긴 나,<br><em>오늘</em>을 비추는 운세</h1>
+        <p class="hero-sub">하늘이 정한 때와 땅이 품은 기운.<br>태어난 순간의 여덟 글자로 당신의 길을 짚어드립니다.</p>
+        <div class="hero-hanja" aria-hidden="true"><span>四</span><span>柱</span><span>八</span><span>字</span></div>
+      </div>
+
+      <div class="menu-cards">
+        <button class="menu-card" data-open="today">
+          <span class="mc-icon">日</span>
+          <span class="mc-text"><strong>오늘의 운세</strong><small>오늘의 일진과 내 사주가 만나 어떤 하루가 될지 알려드려요.</small></span>
+          <span class="mc-arrow">›</span>
+        </button>
+        <button class="menu-card" data-open="saju">
+          <span class="mc-icon">命</span>
+          <span class="mc-text"><strong>나의 사주팔자</strong><small>원국·오행·대운에 MBTI·혈액형까지 겹쳐 풀어드려요.</small></span>
+          <span class="mc-arrow">›</span>
+        </button>
+      </div>
+
+      <div class="saved-card" id="saved-card" hidden></div>
+
+      <div class="cta-wrap"><button class="btn btn-gold btn-block" data-open="today" id="home-cta">오늘의 운세 보기</button></div>
+    </section>
+
+    <!-- 입력 -->
+    <section class="view" id="view-input" hidden>
+      <div class="paper intro-paper">
+        <h2 class="title-brush">기본 정보</h2>
+        <p class="body">운세 풀이에 사용할 생년월일시를 적어 주세요.<br>입력한 정보는 이 브라우저 안에서만 계산·저장되고, 어디로도 전송되지 않아요.</p>
+      </div>
+      <form class="paper form" id="form" novalidate>
+        <div class="field">
+          <label for="f-name">이름</label>
+          <input class="input" id="f-name" name="name" placeholder="홍길동" maxlength="20" autocomplete="name" required>
+        </div>
+        <div class="field">
+          <label>양/음력</label>
+          <div class="seg" role="radiogroup">
+            <input type="radio" name="calendar" id="cal-solar" value="양력" checked><label for="cal-solar">양력</label>
+            <input type="radio" name="calendar" id="cal-lunar" value="음력"><label for="cal-lunar">음력</label>
+          </div>
+          <label class="check-row" id="leap-row" hidden><input type="checkbox" id="f-leap"><span>윤달</span></label>
+        </div>
+        <div class="field">
+          <label for="f-birth">생년월일</label>
+          <input class="input" id="f-birth" name="birth" inputmode="numeric" placeholder="1990.05.15" maxlength="10" required>
+        </div>
+        <div class="field">
+          <label for="f-time">태어난 시각</label>
+          <input class="input" id="f-time" name="time" inputmode="numeric" placeholder="15:00" maxlength="5">
+          <label class="check-row"><input type="checkbox" id="f-unknown"><span>태어난 시각을 몰라요</span></label>
+          <span class="help" id="time-help">대략적인 시간도 괜찮아요. 시각에 따라 시주(時柱)가 정해집니다.</span>
+        </div>
+        <div class="field">
+          <label for="f-region">출생지</label>
+          <select class="input select" id="f-region" name="region"></select>
+          <span class="help">경도 차이를 반영한 진태양시 보정에 사용해요. 한국 서머타임 기간도 자동 보정됩니다.</span>
+        </div>
+        <div class="field">
+          <label>성별</label>
+          <div class="seg" role="radiogroup">
+            <input type="radio" name="gender" id="g-f" value="여" checked><label for="g-f">여</label>
+            <input type="radio" name="gender" id="g-m" value="남"><label for="g-m">남</label>
+          </div>
+          <span class="help">대운(大運)이 흐르는 방향을 정하는 데 쓰입니다.</span>
+        </div>
+        <div class="field">
+          <label>MBTI <span class="opt">선택</span></label>
+          <div class="mbti-pick" id="mbti-pick">
+            <div class="seg mini"><input type="radio" name="m0" id="m0E" value="E"><label for="m0E">E</label><input type="radio" name="m0" id="m0I" value="I"><label for="m0I">I</label></div>
+            <div class="seg mini"><input type="radio" name="m1" id="m1S" value="S"><label for="m1S">S</label><input type="radio" name="m1" id="m1N" value="N"><label for="m1N">N</label></div>
+            <div class="seg mini"><input type="radio" name="m2" id="m2T" value="T"><label for="m2T">T</label><input type="radio" name="m2" id="m2F" value="F"><label for="m2F">F</label></div>
+            <div class="seg mini"><input type="radio" name="m3" id="m3J" value="J"><label for="m3J">J</label><input type="radio" name="m3" id="m3P" value="P"><label for="m3P">P</label></div>
+          </div>
+          <div class="mbti-row"><span class="mbti-now empty" id="mbti-now">선택 안 함</span><button type="button" class="link-btn" id="mbti-clear">초기화</button></div>
+          <span class="help">모르면 비워두세요. 사주로 MBTI를 추정해 드려요.</span>
+        </div>
+        <div class="field">
+          <label>혈액형 <span class="opt">선택</span></label>
+          <div class="seg five" role="radiogroup">
+            <input type="radio" name="blood" id="b-A" value="A"><label for="b-A">A</label>
+            <input type="radio" name="blood" id="b-B" value="B"><label for="b-B">B</label>
+            <input type="radio" name="blood" id="b-O" value="O"><label for="b-O">O</label>
+            <input type="radio" name="blood" id="b-AB" value="AB"><label for="b-AB">AB</label>
+            <input type="radio" name="blood" id="b-x" value="" checked><label for="b-x">모름</label>
+          </div>
+        </div>
+        <p class="form-error" id="form-error" role="alert"></p>
+        <button type="submit" class="btn btn-seal btn-block">내 운명 풀어보기</button>
+      </form>
+    </section>
+
+    <!-- 로딩 -->
+    <section class="view" id="view-loading" hidden>
+      <div class="loading">
+        <div class="bagua" aria-hidden="true">
+          <svg viewBox="0 0 200 200" class="bagua-ring"></svg>
+          <div class="taeguk"></div>
+        </div>
+        <p class="loading-title">여덟 글자를 읽고 있어요</p>
+        <p class="loading-sub" id="loading-sub">만세력을 펼치는 중…</p>
+      </div>
+    </section>
+
+    <!-- 결과 -->
+    <section class="view" id="view-result" hidden>
+      <nav class="tabs" role="tablist">
+        <button role="tab" class="tab" data-tab="today" id="tab-today">오늘의 운세</button>
+        <button role="tab" class="tab" data-tab="saju" id="tab-saju">나의 사주팔자</button>
+      </nav>
+      <div class="mode-bar">
+        <div class="mode-switch" role="radiogroup" aria-label="풀이 모드">
+          <button type="button" role="radio" data-mode="basic" id="mode-basic">기본 풀이</button>
+          <button type="button" role="radio" data-mode="fact" id="mode-fact"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2c1 4 5 6 5 11a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5 0 2 1 3 2 3 0-3-1-6 1-9.5z"/></svg>팩폭 모드</button>
+        </div>
+        <p class="mode-hint" id="mode-hint"></p>
+      </div>
+      <div id="panel-today" class="panel" hidden></div>
+      <div id="panel-saju" class="panel" hidden></div>
+    </section>
+  </main>
+
+  <footer class="foot">명리학의 전통 해석을 바탕으로 한 참고용 풀이입니다.</footer>
+
+  <script src="lib/lunar.js"></script>
+  <script src="js/saju.js"></script>
+  <script src="js/content.js"></script>
+  <script src="js/persona.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
