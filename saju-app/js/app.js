@@ -1,10 +1,10 @@
 (function () {
   'use strict';
-  var S = window.Saju, T = window.SajuText, P = window.PersonaText;
+  var S = window.Saju, T = window.SajuText, P = window.PersonaText, Z = window.ZodiacText;
   var EL = S.EL, EH = S.EL_HANJA;
   var STORE_KEY = 'myeongun.profile';
   var MODE_KEY = 'myeongun.mode';
-  var state = { profile: null, result: null, tab: 'saju', todayOffset: 0, pendingTab: 'saju', mode: load(MODE_KEY) === 'fact' ? 'fact' : 'basic' };
+  var state = { profile: null, result: null, tab: 'saju', todayOffset: 0, pendingTab: 'saju', mode: load(MODE_KEY) === 'fact' ? 'fact' : 'basic', zSel: null, zManual: false };
 
   /* ---------- 유틸 ---------- */
   function $(id) { return document.getElementById(id); }
@@ -45,7 +45,7 @@
     var card = $('saved-card');
     if (p) {
       card.hidden = false;
-      card.innerHTML = '<span class="who"><b>' + esc(p.name) + '</b>님의 사주가 저장되어 있어요<br><span class="small">' + p.calendar + ' ' + p.birth + (p.unknownTime ? '' : ' ' + p.time) + ' · ' + p.gender + (p.mbti ? ' · ' + p.mbti : '') + (p.blood ? ' · ' + p.blood + '형' : '') + '</span></span>' +
+      card.innerHTML = '<span class="who"><b>' + esc(p.name) + '</b>님의 사주가 저장되어 있어요<br><span class="small">' + p.calendar + ' ' + p.birth + (p.unknownTime ? '' : ' ' + p.time) + ' · ' + p.gender + (p.mbti ? ' · ' + p.mbti : '') + (p.blood ? ' · ' + p.blood + '형' : '') + (p.zodiac != null ? ' · ' + Z.signs[p.zodiac].ko : '') + '</span></span>' +
         '<button type="button" data-go="input">수정</button>';
     } else card.hidden = true;
   }
@@ -70,9 +70,88 @@
     document.querySelectorAll('input[name=calendar]').forEach(function (r) {
       r.addEventListener('change', function () { $('leap-row').hidden = !$('cal-lunar').checked; });
     });
-    document.querySelectorAll('#mbti-pick input').forEach(function (r) { r.addEventListener('change', updMbti); });
-    $('mbti-clear').addEventListener('click', function () { document.querySelectorAll('#mbti-pick input').forEach(function (r) { r.checked = false; }); updMbti(); });
+    buildMbtiPicker();
+    document.querySelectorAll('#mbti-pick input').forEach(function (r) {
+      r.addEventListener('change', function () { renderAxisDetail(+r.name.slice(1)); updMbti(); });
+    });
+    $('mbti-clear').addEventListener('click', function () { document.querySelectorAll('#mbti-pick input').forEach(function (r) { r.checked = false; }); renderAllAxis(); updMbti(); });
+    buildZodiacStrip(); resetZodiac();
+    $('zodiac-strip').addEventListener('click', function (e) { var b = e.target.closest('.zchip'); if (b) selectZodiac(+b.dataset.z, true); });
+    $('f-birth').addEventListener('input', autoZodiac);
+    $('f-leap').addEventListener('change', autoZodiac);
+    document.querySelectorAll('input[name=calendar]').forEach(function (r) { r.addEventListener('change', autoZodiac); });
     $('form').addEventListener('submit', onSubmit);
+  }
+
+  function buildMbtiPicker() {
+    $('mbti-pick').innerHTML = P.axisInfo.map(function (ax, i) {
+      return '<div class="ap"><div class="ap-head"><b>' + ax.title + '</b><span>' + ax.q + '</span></div><div class="ap-opts">' +
+        [ax.A, ax.B].map(function (o) {
+          var id = 'm' + i + o.l;
+          return '<input type="radio" name="m' + i + '" id="' + id + '" value="' + o.l + '"><label class="ap-card" for="' + id + '"><span class="lt">' + o.l + '</span><span class="nm">' + o.name + '</span><span class="one">' + o.one + '</span></label>';
+        }).join('') + '</div><div id="apd' + i + '"></div></div>';
+    }).join('');
+  }
+  /* 카드를 고르면 두 성향의 설명을 나란히 펼치고, 고른 쪽을 강조 */
+  function renderAxisDetail(i) {
+    var ax = P.axisInfo[i], c = document.querySelector('input[name=m' + i + ']:checked'), box = $('apd' + i);
+    if (!c) { box.innerHTML = ''; return; }
+    box.innerHTML = '<div class="ap-detail">' + [ax.A, ax.B].map(function (o) {
+      var on = o.l === c.value;
+      return '<div class="' + (on ? 'on' : '') + '"><h5>' + o.l + ' ' + o.name + '형' + (on ? ' · 나' : '') + '</h5><ul>' + o.more.map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ul></div>';
+    }).join('') + '</div>';
+  }
+  function renderAllAxis() { [0, 1, 2, 3].forEach(renderAxisDetail); }
+
+  /* ---------- 별자리 선택 ---------- */
+  function zodiacStage(i, text, isResult) {
+    var z = Z.signs[i];
+    var sky = '<svg class="zs-sky" viewBox="0 0 100 100" aria-hidden="true">' +
+      z.lines.map(function (l, k) { var a = z.stars[l[0]], b = z.stars[l[1]]; return '<line class="zl" x1="' + a[0] + '" y1="' + a[1] + '" x2="' + b[0] + '" y2="' + b[1] + '" style="animation-delay:' + (k * .12).toFixed(2) + 's"/>'; }).join('') +
+      z.stars.map(function (s, k) { return '<circle class="zst" cx="' + s[0] + '" cy="' + s[1] + '" r="' + (s[2] * .9).toFixed(2) + '" style="animation-delay:' + (.25 + k * .08).toFixed(2) + 's,' + (1 + k * .3).toFixed(2) + 's"/>'; }).join('') + '</svg>';
+    return '<div class="zs' + (isResult ? ' result' : '') + '" style="--z1:' + z.colors[0] + ';--z2:' + z.colors[1] + '"><div class="zs-aura"></div><div class="zs-dust"></div>' +
+      '<div class="zs-top"><div class="zs-orb"><span class="zs-glyph">' + z.glyph + '\uFE0E</span><i class="zs-ring"></i></div>' + sky + '</div>' +
+      '<div class="zs-info"><div class="zs-en">' + z.en + ' · ' + z.from.join('.') + ' ~ ' + z.to.join('.') + '</div><h4>' + z.ko + '<small>' + z.nick + '</small></h4><p>' + text + '</p>' +
+      '<div class="zs-tags">' + z.keys.map(function (k) { return '<span>#' + k + '</span>'; }).join('') + '<span>원소 ' + z.el + '</span><span>수호성 ' + z.planet + '</span></div></div></div>';
+  }
+  function buildZodiacStrip() {
+    $('zodiac-strip').innerHTML = Z.signs.map(function (z, i) {
+      return '<button type="button" class="zchip" role="radio" aria-checked="false" aria-label="' + z.ko + '" data-z="' + i + '" style="--z1:' + z.colors[0] + ';--z2:' + z.colors[1] + '">' +
+        '<span class="g">' + z.glyph + '\uFE0E</span><span class="n">' + z.ko.replace('자리', '') + '</span><span class="d">' + z.from.join('.') + '~</span></button>';
+    }).join('');
+  }
+  function resetZodiac() {
+    state.zSel = null; state.zManual = false;
+    document.querySelectorAll('.zchip').forEach(function (b) { b.setAttribute('aria-checked', 'false'); });
+    $('zodiac-auto').textContent = '생일로 자동 선택';
+    $('zodiac-stage').innerHTML = '<div class="zs zs-empty"><div class="zs-aura"></div><div class="zs-dust"></div><div><div class="ring">' +
+      Z.signs.map(function (z) { return z.glyph + '\uFE0E'; }).join('') + '</div><p>생년월일을 입력하면<br>나의 별자리 캐릭터가 나타나요</p></div></div>';
+  }
+  function selectZodiac(i, manual) {
+    if (manual !== undefined) state.zManual = manual;
+    if (i === state.zSel && manual === undefined) return;
+    state.zSel = i;
+    document.querySelectorAll('.zchip').forEach(function (b) { b.setAttribute('aria-checked', String(+b.dataset.z === i)); });
+    $('zodiac-stage').innerHTML = zodiacStage(i, Z.signs[i].s, false);
+    $('zodiac-auto').textContent = state.zManual ? '직접 선택' : '생일로 자동 선택';
+    var strip = $('zodiac-strip'), chip = strip.querySelector('[data-z="' + i + '"]');
+    if (strip.scrollTo) strip.scrollTo({ left: chip.offsetLeft - strip.clientWidth / 2 + chip.clientWidth / 2, behavior: 'smooth' });
+  }
+  /* 입력한 생일(음력이면 양력으로 환산)로 별자리를 자동 선택 */
+  function birthSolarMD() {
+    var m = /^(\d{4})\.(\d{2})\.(\d{2})$/.exec($('f-birth').value);
+    if (!m) return null;
+    var y = +m[1], mo = +m[2], d = +m[3];
+    if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+    if ($('cal-lunar').checked) {
+      try { var s = Lunar.fromYmd(y, $('f-leap').checked ? -mo : mo, d).getSolar(); mo = s.getMonth(); d = s.getDay(); } catch (e) { return null; }
+    }
+    return [mo, d];
+  }
+  function autoZodiac() {
+    if (state.zManual) return;
+    var md = birthSolarMD();
+    if (md) selectZodiac(Z.signOf(md[0], md[1]));
   }
 
   function readMbti() {
@@ -93,8 +172,10 @@
     $(p.gender === '남' ? 'g-m' : 'g-f').checked = true;
     var mb = p.mbti || '';
     [0, 1, 2, 3].forEach(function (i) { document.querySelectorAll('input[name=m' + i + ']').forEach(function (r) { r.checked = mb.charAt(i) === r.value; }); });
-    updMbti();
+    renderAllAxis(); updMbti();
     $(p.blood ? 'b-' + p.blood : 'b-x').checked = true;
+    resetZodiac();
+    if (p.zodiac != null) selectZodiac(p.zodiac, !!p.zodiacManual); else autoZodiac();
   }
 
   function onSubmit(e) {
@@ -123,7 +204,9 @@
     }
     var mv = readMbti(), mn = mv.filter(Boolean).length;
     if (mn > 0 && mn < 4) { err.textContent = 'MBTI는 네 글자를 모두 고르거나 초기화해 주세요.'; $('mbti-pick').scrollIntoView({ block: 'center' }); return; }
-    var profile = { name: name, mbti: mn === 4 ? mv.join('') : '', blood: document.querySelector('input[name=blood]:checked').value, birth: birth, time: unknown ? '' : time, unknownTime: unknown, region: $('f-region').value,
+    if (state.zSel == null) autoZodiac();
+    var profile = { name: name, mbti: mn === 4 ? mv.join('') : '', blood: document.querySelector('input[name=blood]:checked').value,
+      zodiac: state.zSel, zodiacManual: state.zManual, birth: birth, time: unknown ? '' : time, unknownTime: unknown, region: $('f-region').value,
       gender: document.querySelector('input[name=gender]:checked').value, calendar: calendar, leap: calendar === '음력' && $('f-leap').checked,
       y: y, m: mo, d: d, hour: hh, minute: mm };
     save(STORE_KEY, profile);
@@ -365,19 +448,31 @@
 
 
   /* ---------- 삼중 분석: 사주 × MBTI × 혈액형 ---------- */
+  function zodiacOf(r) { return r.input.zodiac != null ? r.input.zodiac : Z.signOf(r.solarDate.m, r.solarDate.d); }
+
   function renderTriple(r, gs) {
     var p = r.input, ds = r.dayStem, known = !!p.mbti, m = p.mbti || r.sajuMbti, mi = P.mbti[m];
+    var zi = zodiacOf(r), z = Z.signs[zi], zStyle = '--z1:' + z.colors[0] + ';--z2:' + z.colors[1];
     var b = p.blood ? P.blood[p.blood] : null, sc = P.sajuScene[gs[0].i], h = '';
-    h += secHead('四', M('사주 × MBTI × 혈액형', '삼단 콤보 해부'), '三 重 分 析', L('triple'));
+    h += secHead('四', M('사주 × MBTI × 혈액형 × 별자리', '4단 콤보 해부'), '四 重 分 析', L('triple'));
     h += '<div class="paper">';
 
     // 통합 캐릭터
     h += '<div class="combo" data-mark="' + m + '"><div class="k">' + M('통합 캐릭터', '한 줄 정체') + '</div>' +
-      '<h3>' + P.dayAdj[ds] + ' ' + m + (b ? ' · ' + p.blood + '형' : '') + '</h3>' +
-      '<div class="sub">' + (known ? mi.nick : '사주로 추정한 ' + m + ' · ' + mi.nick) + (b ? ' × ' + b.nick : '') + '</div>' +
+      '<h3>' + P.dayAdj[ds] + ' ' + m + (b ? ' · ' + p.blood + '형' : '') + ' · ' + z.ko + '</h3>' +
+      '<div class="sub">' + (known ? mi.nick : '사주로 추정한 ' + m + ' · ' + mi.nick) + (b ? ' × ' + b.nick : '') + ' × ' + z.nick + '</div>' +
       '<p>' + M(T.dayMaster[ds].img + ' 같은 기운에 ' + mi.nick + '의 성향' + (b ? ', ' + b.nick + '의 기질' : '') + '이 더해진 사람이에요. ' + mi.s + (b ? ' ' + b.s : ''),
         '한마디로 ' + P.dayNick[ds] + ' + ' + mi.nick + (b ? ' + ' + b.nick : '') + '. ' + mi.f[3]) + '</p>' +
-      '<div class="badges"><span class="bs">사주 ' + S.STEMS[ds] + EH[r.dayEl] + ' 일간</span><span class="bm">' + m + (known ? '' : ' (추정)') + '</span>' + (b ? '<span class="bb">' + p.blood + '형</span>' : '') + '</div></div>';
+      '<div class="badges"><span class="bs">사주 ' + S.STEMS[ds] + EH[r.dayEl] + ' 일간</span><span class="bm">' + m + (known ? '' : ' (추정)') + '</span>' + (b ? '<span class="bb">' + p.blood + '형</span>' : '') + '<span class="bz" style="' + zStyle + '">' + z.glyph + '\uFE0E ' + z.ko + '</span></div></div>';
+
+    // 별자리 캐릭터
+    var zOh = Z.EL_TO_OHAENG[z.el], syn;
+    if (zOh === r.yong) syn = M('별자리 원소 <b>' + z.el + '</b>' + (hasBatchim(z.el) ? '은' : '는') + ' 오행으로 ' + EL[zOh] + ' 기운이에요. 사주에 가장 필요한 용신과 같아서, 부족한 기운을 별이 채워주는 든든한 조합이에요.', '별자리가 네 사주 빈칸(' + EL[zOh] + ')을 채워주는 기운이야. 이건 진짜 꿀조합, 별 덕 보고 사는 사람.');
+    else if (zOh === r.gi) syn = M('별자리 원소 <b>' + z.el + '</b>' + (hasBatchim(z.el) ? '은' : '는') + ' 오행으로 ' + EL[zOh] + ' 기운이라 사주에서 조심할 기운과 겹쳐요. 장점이 과해지지 않게 균형을 의식하면 좋아요.', '별자리가 네 사주에 이미 넘치는 ' + EL[zOh] + ' 기운을 또 얹었어. 과하면 탈 나니까 브레이크 장착 필수.');
+    else if (zOh === r.dayEl) syn = M('별자리 원소 <b>' + z.el + '</b>' + (hasBatchim(z.el) ? '이' : '가') + ' 나를 뜻하는 일간과 같은 ' + EL[zOh] + ' 기운이에요. 타고난 성향이 더 또렷하게 드러나요.', '별자리랑 사주가 같은 ' + EL[zOh] + ' 기운이라 성격이 아주 진하게 나와. 장점도 단점도 두 배.');
+    else syn = M('별자리 원소 <b>' + z.el + '</b>' + (hasBatchim(z.el) ? '은' : '는') + ' 오행으로 ' + EL[zOh] + ' 기운이에요. 사주와 다른 색깔을 더해 성격에 입체감을 줘요.', '별자리는 사주랑 다른 ' + EL[zOh] + ' 기운이라 반전 매력을 만들어. "너 그런 면도 있었어?" 소리 듣는 부분이 여기야.');
+    h += '<h3 class="h3" style="margin-top:20px">' + M('별자리 캐릭터', '별자리가 말하는 너') + '</h3>' + zodiacStage(zi, M(z.s, z.f[0]), true) +
+      '<div class="zsyn">' + syn + '</div>';
 
     // 싱크로율
     var syncSum = 0, rows = '';
@@ -404,7 +499,7 @@
     if (state.mode === 'fact') {
       var list = [['MBTI · ' + m, mi.f[0]], ['MBTI · ' + m, mi.f[1]]];
       if (b) list.push(['혈액형 · ' + p.blood + '형', b.f[0]], ['혈액형 · ' + p.blood + '형', b.f[1]]);
-      list.push(['MBTI · ' + m, mi.f[2]]);
+      list.push(['별자리 · ' + z.ko, z.f[1]], ['MBTI · ' + m, mi.f[2]]);
       h += '<h3 class="h3" style="margin-top:22px">팩폭 연타</h3><ol class="fact-list">' + list.map(function (f) { return '<li><small>' + f[0] + '</small>' + f[1] + '</li>'; }).join('') + '</ol>';
     } else {
       h += '<h3 class="h3" style="margin-top:22px">성향 카드</h3><div class="trait-grid"><div class="trait m"><div class="tt"><b>' + m + '</b><span>' + mi.nick + (known ? '' : ' · 사주 추정') + '</span></div><p>' + mi.s + '</p></div>' +
@@ -413,12 +508,12 @@
 
     // 상황별
     var scenes = [
-      { t: M('연애할 때', '연애할 때 너'), ic: '愛', c: '#c4473c', items: [['s', sc.love], ['m', mi.love], b && ['b', b.love]] },
+      { t: M('연애할 때', '연애할 때 너'), ic: '愛', c: '#c4473c', items: [['s', sc.love], ['m', mi.love], b && ['b', b.love], ['z', z.love]] },
       { t: M('일·커리어', '일할 때 너'), ic: '職', c: '#1f2c44', items: [['s', sc.work], ['m', mi.work]] },
       { t: M('돈 관리', '돈 쓸 때 너'), ic: '財', c: '#b8862e', items: [['s', sc.money], b && ['b', b.money]] },
       { t: M('스트레스 받을 때', '멘탈 나갈 때 너'), ic: '心', c: '#6d4fb3', items: [['s', sc.stress], ['m', mi.stress]] }
     ];
-    var srcName = { s: '사주', m: 'MBTI', b: '혈액형' };
+    var srcName = { s: '사주', m: 'MBTI', b: '혈액형', z: '별자리' };
     h += '<h3 class="h3" style="margin-top:22px">' + M('상황별로 보면', '상황별 팩트 체크') + '</h3><div class="card-list">';
     scenes.forEach(function (x) {
       h += '<div class="scene"><span class="ic" style="background:' + x.c + '">' + x.ic + '</span><div><h4>' + x.t + '</h4><ul>' +
@@ -435,7 +530,8 @@
       '<div class="match"><div class="k">MBTI 찰떡</div><div class="v">' + mi.best.join(' · ') + '</div><div class="d">' + M('대화가 잘 통하는 조합', '말 안 해도 통하는 사이') + '</div></div>' +
       '<div class="match"><div class="k">MBTI 상극</div><div class="v">' + mi.worst + '</div><div class="d">' + M('이해하는 데 시간이 걸려요', '만나면 서로 답답해 미침') + '</div></div>' +
       (b ? '<div class="match"><div class="k">혈액형 궁합</div><div class="v">' + b.best.map(function (x) { return x + '형'; }).join(' · ') + '</div><div class="d">' + M('편안하게 맞는 혈액형', '같이 있으면 편한 혈액형') + '</div></div>' : '') +
-      '<div class="match"' + (b ? '' : ' style="grid-column:1/-1"') + '><div class="k">용신 ' + EL[r.yong] + EH[r.yong] + ' 기운 MBTI</div><div class="v" style="font-size:15px">' + yongTypes.join(' · ') + '</div><div class="d">' + M('사주에 필요한 기운을 가진 유형', '네 부족한 기운 채워줄 유형') + '</div></div></div>';
+      '<div class="match"><div class="k">용신 ' + EL[r.yong] + EH[r.yong] + ' 기운 MBTI</div><div class="v" style="font-size:15px">' + yongTypes.join(' · ') + '</div><div class="d">' + M('사주에 필요한 기운을 가진 유형', '네 부족한 기운 채워줄 유형') + '</div></div>' +
+      '<div class="match"' + (b ? ' style="grid-column:1/-1"' : '') + '><div class="k">별자리 궁합</div><div class="v" style="font-size:16px">' + z.best.map(function (x) { return Z.signs[x].ko; }).join(' · ') + '</div><div class="d">' + M(z.ko + '와 잘 맞는 별자리', '얘네랑은 말 안 해도 통해') + '</div></div></div>';
 
     if (!known || !b) h += '<div class="add-more"><span>' + M('MBTI와 혈액형을 입력하면 더 자세한 분석을 볼 수 있어요.', 'MBTI랑 혈액형 알려주면 더 세게 분석해줄게.') + '</span><button type="button" data-go="input">입력하기</button></div>';
     return h + '</div>';
@@ -572,12 +668,12 @@
       '오행 가운데 ' + EL[maxEl] + ' 기운이 가장 강하고 ' + EL[minEl] + ' 기운이 가장 약해, ' + EL[r.yong] + ' 기운을 보태는 것이 운을 여는 열쇠입니다. ' +
       (cur ? '지금 지나는 ' + cur.gz + ' 대운은 ' + (cur.score >= 1 ? '힘이 실리는 시기이니 계획을 실행으로 옮기기 좋습니다. ' : cur.score <= -1 ? '기반을 다지는 시기이니 무리한 확장보다 내실을 챙기세요. ' : '기회와 부담이 섞여 오는 시기이니 균형을 지키는 것이 먼저입니다. ') : '') +
       golden.startAge + '세부터 열리는 ' + golden.gz + ' 대운에서 크게 꽃피며, 곁에는 ' + EL[r.yong] + ' 기운의 사람이 힘이 됩니다. ' +
-      '행운의 색은 ' + T.remedy[r.yong].color + ', 방향은 ' + T.remedy[r.yong].dir + '입니다.';
+      '행운의 색은 ' + T.remedy[r.yong].color + ', 방향은 ' + T.remedy[r.yong].dir + '입니다. 여기에 ' + Z.signs[zodiacOf(r)].ko + '의 ' + Z.signs[zodiacOf(r)].keys[0] + '·' + Z.signs[zodiacOf(r)].keys[1] + ' 기질이 더해집니다.';
     if (state.mode === 'fact') {
       var pi = r.input, mb = pi.mbti || r.sajuMbti, bl = pi.blood;
       line = P.dayNick[r.dayStem] + ', ' + g1.short + '만 고치면 ' + state.goldenLabel.replace(' ~ ', '~') + '에 대박 나.';
       body = name + ', 정리해줄게. 넌 ' + S.STEM_KO[r.dayStem] + EL[r.dayEl] + '(' + S.STEMS[r.dayStem] + EH[r.dayEl] + ') 일간, 쉽게 말하면 ' + dm.img + '. ' + EL[maxEl] + ' 기운은 넘치고 ' + EL[minEl] + ' 기운은 모자라서, ' + EL[r.yong] + ' 기운 채우는 게 제일 급해. ' +
-        (pi.mbti ? 'MBTI는 ' + mb + '(' + P.mbti[mb].nick + ')' : '사주로 보면 MBTI는 ' + mb + '(' + P.mbti[mb].nick + ') 쪽') + (bl ? ', 혈액형은 ' + bl + '형(' + P.blood[bl].nick + ')' : '') + '. 이 조합이면 ' + (bl ? P.blood[bl].f[2] : P.mbti[mb].f[3]) + ' ' +
+        (pi.mbti ? 'MBTI는 ' + mb + '(' + P.mbti[mb].nick + ')' : '사주로 보면 MBTI는 ' + mb + '(' + P.mbti[mb].nick + ') 쪽') + (bl ? ', 혈액형은 ' + bl + '형(' + P.blood[bl].nick + ')' : '') + ', 별자리는 ' + Z.signs[zodiacOf(r)].ko + '(' + Z.signs[zodiacOf(r)].nick + ')' + '. 이 조합이면 ' + (bl ? P.blood[bl].f[2] : P.mbti[mb].f[3]) + ' ' +
         (cur ? (cur.score >= 1 ? '지금 대운은 밀어붙일 타이밍이니까 고민 그만하고 질러. ' : cur.score <= -1 ? '지금 대운은 버티는 구간이야. 무리하게 벌이지 말고 체력이랑 통장부터 지켜. ' : '지금 대운은 기회랑 부담이 반반이야. 욕심 조금만 덜어내. ') : '') +
         golden.startAge + '세부터 ' + golden.gz + ' 대운에서 진짜 터지니까 그때까지 실력 쌓아 둬. 행운의 색은 ' + T.remedy[r.yong].color + ', 방향은 ' + T.remedy[r.yong].dir + '. 오늘부터 바로 써먹어.';
     }
@@ -639,7 +735,11 @@
       '<p class="today-body">' + info.b + ' ' + (fS + fB >= 2 ? '오늘 들어오는 기운이 용신 ' + josa(EL[r.yong], '과', '와') + ' 잘 맞아 평소보다 일이 매끄럽게 풀립니다.' : fS + fB <= -2 ? '오늘은 사주와 엇갈리는 기운이 강하니 중요한 결정은 하루 미뤄도 좋습니다.' : '') +
       (chung ? ' 일지와 충이 들어 예정에 없던 이동이나 변동이 생기기 쉬우니 여유 시간을 두세요.' : hap ? ' 일지와 합이 들어 사람과의 약속·협력이 순조롭습니다.' : '') + '</p>' +
       (state.mode === 'fact' ? '<div class="fact-box"><b>오늘의 팩폭</b> ' + P.todayFact[god] + (chung ? ' 그리고 오늘 충 들었어. 약속 시간 넉넉하게 잡아.' : '') +
-        (p.mbti ? '<br><b>' + p.mbti + '한테 한마디</b> ' + P.mbti[p.mbti].f[hash(seed) % P.mbti[p.mbti].f.length] : '') + '</div>' : '') + '</div>';
+        (p.mbti ? '<br><b>' + p.mbti + '한테 한마디</b> ' + P.mbti[p.mbti].f[hash(seed) % P.mbti[p.mbti].f.length] : '') + '</div>' : '') +
+      (function () {
+        var zi = zodiacOf(r), z = Z.signs[zi], k = hash(seed + 'z' + zi) % Z.today.s.length;
+        return '<div class="zone" style="--z1:' + z.colors[0] + ';--z2:' + z.colors[1] + '"><span class="g">' + z.glyph + '\uFE0E</span><div><div class="k">오늘의 ' + z.ko + '</div><p>' + M(Z.today.s[k], Z.today.f[k]) + '</p></div></div>';
+      })() + '</div>';
 
     h += secHead('財', '분야별 운세', '各 運');
     h += '<div class="paper"><div class="cats">' + cats.map(function (c) {
@@ -693,7 +793,7 @@
     } else if (t.dataset.tab) setTab(t.dataset.tab);
     else if (t.dataset.tabGo) setTab(t.dataset.tabGo);
     else if (t.dataset.new) {
-      $('form').reset(); updMbti(); $('f-time').disabled = false; $('leap-row').hidden = true; $('form-error').textContent = '';
+      $('form').reset(); renderAllAxis(); updMbti(); resetZodiac(); $('f-time').disabled = false; $('leap-row').hidden = true; $('form-error').textContent = '';
       state.pendingTab = state.tab; show('input');
     } else if (t.dataset.day) { state.todayOffset += +t.dataset.day; renderToday(); }
   });

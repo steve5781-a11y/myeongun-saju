@@ -101,14 +101,10 @@
         </div>
         <div class="field">
           <label>MBTI <span class="opt">선택</span></label>
-          <div class="mbti-pick" id="mbti-pick">
-            <div class="seg mini"><input type="radio" name="m0" id="m0E" value="E"><label for="m0E">E</label><input type="radio" name="m0" id="m0I" value="I"><label for="m0I">I</label></div>
-            <div class="seg mini"><input type="radio" name="m1" id="m1S" value="S"><label for="m1S">S</label><input type="radio" name="m1" id="m1N" value="N"><label for="m1N">N</label></div>
-            <div class="seg mini"><input type="radio" name="m2" id="m2T" value="T"><label for="m2T">T</label><input type="radio" name="m2" id="m2F" value="F"><label for="m2F">F</label></div>
-            <div class="seg mini"><input type="radio" name="m3" id="m3J" value="J"><label for="m3J">J</label><input type="radio" name="m3" id="m3P" value="P"><label for="m3P">P</label></div>
-          </div>
+          <p class="help" style="margin-top:-2px">카드를 누르면 두 성향의 차이를 자세히 보여드려요. 몰라도 괜찮아요.</p>
+          <div class="mbti-pick" id="mbti-pick"></div>
           <div class="mbti-row"><span class="mbti-now empty" id="mbti-now">선택 안 함</span><button type="button" class="link-btn" id="mbti-clear">초기화</button></div>
-          <span class="help">모르면 비워두세요. 사주로 MBTI를 추정해 드려요.</span>
+          <span class="help">비워두면 사주로 MBTI를 추정해 드려요.</span>
         </div>
         <div class="field">
           <label>혈액형 <span class="opt">선택</span></label>
@@ -119,6 +115,12 @@
             <input type="radio" name="blood" id="b-AB" value="AB"><label for="b-AB">AB</label>
             <input type="radio" name="blood" id="b-x" value="" checked><label for="b-x">모름</label>
           </div>
+        </div>
+        <div class="field">
+          <label>별자리 <span class="opt" id="zodiac-auto">생일로 자동 선택</span></label>
+          <div class="zodiac-stage" id="zodiac-stage" aria-live="polite"></div>
+          <div class="zodiac-strip" id="zodiac-strip" role="radiogroup" aria-label="별자리 선택"></div>
+          <span class="help">생일을 입력하면 자동으로 골라져요. 다른 별자리를 눌러 바꿀 수도 있어요.</span>
         </div>
         <p class="form-error" id="form-error" role="alert"></p>
         <button type="submit" class="btn btn-seal btn-block">내 운명 풀어보기</button>
@@ -161,6 +163,7 @@
   <script src="js/saju.js"></script>
   <script src="js/content.js"></script>
   <script src="js/persona.js"></script>
+  <script src="js/zodiac.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
